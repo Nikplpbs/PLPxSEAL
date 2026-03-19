@@ -394,27 +394,34 @@
     });
   }
 
-  // ===== Real-time response counts =====
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyolRdTugKFr4HJdnt2lWZbUetg4LZz2_Mt32cCn7DtnFY4VxaNQQLH2ekBK-IIUmJ2/exec';
+  // ===== Real-time response counts (JSONP) =====
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzo2C5EKFT9ttotCp8crl14DfRUKy7W_yLhV81bHQxL_JaRfnw8keR9rgQzleQhdQ0/exec';
+
+  function handleCounts(data) {
+    for (const [key, count] of Object.entries(data)) {
+      const el = document.getElementById('badge-' + key);
+      if (!el) continue;
+      if (count === -1) {
+        el.textContent = '—';
+      } else {
+        el.textContent = '📋 ' + count + ' คน';
+        el.classList.add('loaded');
+      }
+    }
+  }
 
   function loadCounts() {
-    fetch(SCRIPT_URL)
-      .then(r => r.json())
-      .then(data => {
-        for (const [key, count] of Object.entries(data)) {
-          const el = document.getElementById('badge-' + key);
-          if (!el) continue;
-          if (count === -1) {
-            el.textContent = '—';
-          } else {
-            el.textContent = '📋 ' + count + ' คน';
-            el.classList.add('loaded');
-          }
-        }
-      })
-      .catch(() => {
-        document.querySelectorAll('.resp-badge').forEach(el => el.textContent = '—');
-      });
+    // Remove old script tag if exists
+    const old = document.getElementById('jsonp-script');
+    if (old) old.remove();
+
+    const script = document.createElement('script');
+    script.id = 'jsonp-script';
+    script.src = SCRIPT_URL + '?callback=handleCounts&t=' + Date.now();
+    script.onerror = () => {
+      document.querySelectorAll('.resp-badge').forEach(el => el.textContent = '—');
+    };
+    document.body.appendChild(script);
   }
 
   loadCounts();
