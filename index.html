@@ -395,33 +395,40 @@
   }
 
   // ===== Real-time response counts (JSONP) =====
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzo2C5EKFT9ttotCp8crl14DfRUKy7W_yLhV81bHQxL_JaRfnw8keR9rgQzleQhdQ0/exec';
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwNF9U96OB2PWF_IFbkDumvIieYbuHSgKl3DDnbF_ooicgWGKnk9TbYo8xAxnAF8eiV/exec';
 
   function handleCounts(data) {
+    console.log('JSONP OK:', data);
     for (const [key, count] of Object.entries(data)) {
       const el = document.getElementById('badge-' + key);
       if (!el) continue;
       if (count === -1) {
-        el.textContent = '—';
+        el.textContent = '!';
+        el.title = 'Script ไม่มีสิทธิ์เปิด Form นี้';
       } else {
-        el.textContent = '📋 ' + count + ' คน';
+        el.textContent = count + ' คน';
         el.classList.add('loaded');
       }
     }
   }
 
   function loadCounts() {
-    // Remove old script tag if exists
-    const old = document.getElementById('jsonp-script');
-    if (old) old.remove();
+    const oldScript = document.getElementById('jsonp-script');
+    if (oldScript) oldScript.remove();
 
     const script = document.createElement('script');
     script.id = 'jsonp-script';
     script.src = SCRIPT_URL + '?callback=handleCounts&t=' + Date.now();
-    script.onerror = () => {
-      document.querySelectorAll('.resp-badge').forEach(el => el.textContent = '—');
+    script.onload  = () => console.log('JSONP script loaded');
+    script.onerror = (e) => {
+      console.error('JSONP script error:', e);
+      document.querySelectorAll('.resp-badge').forEach(el => {
+        el.textContent = 'err';
+        el.style.color = 'red';
+      });
     };
     document.body.appendChild(script);
+    console.log('JSONP URL:', script.src);
   }
 
   loadCounts();
