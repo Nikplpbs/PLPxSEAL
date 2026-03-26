@@ -246,8 +246,8 @@
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 2000);
   }
-
-  // ===== Real-time response counts (JSONP) =====
+  
+// ===== Real-time response counts (กลับมาใช้ JSONP แบบเดิมที่เสถียรที่สุด + แก้ยอดค้าง) =====
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzlO2i2NUJOg2NtiNzZyZcPu6auAmDMJ7Qom-K8lF8/exec';
 
   function handleCounts(data) {
@@ -266,12 +266,17 @@
   }
 
   function loadCounts() {
+    // ลบสคริปต์ตัวเก่าทิ้งก่อนเพื่อไม่ให้รก
     const oldScript = document.getElementById('jsonp-script');
     if (oldScript) oldScript.remove();
 
+    // สร้างสคริปต์ตัวใหม่
     const script = document.createElement('script');
     script.id = 'jsonp-script';
+    
+    // ใส่ &t=Date.now() เข้าไปเพื่อบังคับให้มันดึงข้อมูลใหม่ล่าสุดเสมอ (ไม่ใช้ค่าที่จำไว้)
     script.src = SCRIPT_URL + '?callback=handleCounts&t=' + Date.now();
+    
     script.onload  = () => console.log('JSONP script loaded');
     script.onerror = (e) => {
       console.error('JSONP script error:', e);
@@ -280,12 +285,15 @@
         el.style.color = 'red';
       });
     };
+    
     document.body.appendChild(script);
-    console.log('JSONP URL:', script.src);
   }
 
+  // โหลดครั้งแรกตอนเปิดเว็บ
   loadCounts();
-  setInterval(loadCounts, 60000); // refresh ทุก 1 นาที
+  
+  // ตั้งให้อัปเดตยอดทุกๆ 15 วินาที
+  setInterval(loadCounts, 15000); 
 </script>
 </body>
 </html>
