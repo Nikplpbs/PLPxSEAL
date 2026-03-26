@@ -247,35 +247,53 @@
     setTimeout(() => t.classList.remove('show'), 2000);
   }
   
-// ===== Real-time response counts (JSONP) =====
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzlO2i2NUJOg2NtiNzZyZcPu6auAmDMJ7Qom-K8lF8/exec';
+// ===== Real-time response counts (กลับมาใช้ JSONP แบบเดิมที่เสถียรที่สุด + แก้ยอดค้าง) =====
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzlO2i2NUJOg2NtiNzZyZcPu6auAmDMJ7Qom-K8lF8/exec';
 
-function handleCounts(data) {
-  console.log('JSONP OK:', data);
-  for (const [key, count] of Object.entries(data)) {
-    const el = document.getElementById('badge-' + key);
-    if (!el) continue;
-    if (count === -1) {
-      el.textContent = '!';
-      el.title = 'Script ไม่มีสิทธิ์เปิด Form นี้';
-    } else {
-      el.textContent = count + ' คน';
-      el.classList.add('loaded');
+  function handleCounts(data) {
+    console.log('JSONP OK:', data);
+    for (const [key, count] of Object.entries(data)) {
+      const el = document.getElementById('badge-' + key);
+      if (!el) continue;
+      if (count === -1) {
+        el.textContent = '!';
+        el.title = 'Script ไม่มีสิทธิ์เปิด Form นี้ หรือ ID ผิด';
+      } else {
+        el.textContent = count + ' คน';
+        el.classList.add('loaded');
+      }
     }
   }
-}
 
-function loadCounts() {
-  const oldScript = document.getElementById('jsonp-script');
-  if (oldScript) oldScript.remove();
+  function loadCounts() {
+    // ลบสคริปต์ตัวเก่าทิ้งก่อนเพื่อไม่ให้รก
+    const oldScript = document.getElementById('jsonp-script');
+    if (oldScript) oldScript.remove();
 
-  const script = document.createElement('script');
-  script.id = 'jsonp-script';
-  script.src = SCRIPT_URL + '?callback=handleCounts&t=' + Date.now();
-  script.onload  = () => console.log('JSONP script loaded');
-  script.onerror = () => console.log('JSONP retry later...');
-  document.body.appendChild(script);
-}
+    // สร้างสคริปต์ตัวใหม่
+    const script = document.createElement('script');
+    script.id = 'jsonp-script';
+    
+    // ใส่ &t=Date.now() เข้าไปเพื่อบังคับให้มันดึงข้อมูลใหม่ล่าสุดเสมอ (ไม่ใช้ค่าที่จำไว้)
+    script.src = SCRIPT_URL + '?callback=handleCounts&t=' + Date.now();
+    
+    script.onload  = () => console.log('JSONP script loaded');
+    script.onerror = (e) => {
+      console.error('JSONP script error:', e);
+      document.querySelectorAll('.resp-badge').forEach(el => {
+        el.textContent = 'err';
+        el.style.color = 'red';
+      });
+    };
+    
+    document.body.appendChild(script);
+  }
 
-loadCounts();
-setInterval(loadCounts, 60000);
+  // โหลดครั้งแรกตอนเปิดเว็บ
+  loadCounts();
+  
+  // ตั้งให้อัปเดตยอดทุกๆ 15 วินาที
+  setInterval(loadCounts, 15000); 
+</script>
+</body>
+</html>
