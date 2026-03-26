@@ -247,53 +247,79 @@
     setTimeout(() => t.classList.remove('show'), 2000);
   }
   
-// ===== Real-time response counts (กลับมาใช้ JSONP แบบเดิมที่เสถียรที่สุด + แก้ยอดค้าง) =====
+// ===== Real-time response counts =====
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzlO2i2NUJOg2NtiNzZyZcPu6auAmDMJ7Qom-K8lF8/exec';
 
+  const TIMEOUT_MS  = 10000;
+  const RETRY_MAX   = 3;
+  const REFRESH_MS  = 15000;
+
+  let retryCount    = 0;
+  let timeoutHandle = null;
+  const lastKnown   = {};
+
   function handleCounts(data) {
+    clearTimeout(timeoutHandle);
+    retryCount = 0;
     console.log('JSONP OK:', data);
     for (const [key, count] of Object.entries(data)) {
       const el = document.getElementById('badge-' + key);
       if (!el) continue;
       if (count === -1) {
-        el.textContent = '!';
-        el.title = 'Script ไม่มีสิทธิ์เปิด Form นี้ หรือ ID ผิด';
+        if (!lastKnown[key]) {
+          el.textContent = 'err';
+          el.style.color = '#dc2626';
+        }
       } else {
+        lastKnown[key] = count;
         el.textContent = count + ' คน';
+        el.style.color = '';
         el.classList.add('loaded');
       }
     }
   }
 
-  function loadCounts() {
-    // ลบสคริปต์ตัวเก่าทิ้งก่อนเพื่อไม่ให้รก
-    const oldScript = document.getElementById('jsonp-script');
-    if (oldScript) oldScript.remove();
+  function setAllBadgesLoading() {
+    document.querySelectorAll('.resp-badge').forEach(el => {
+      const key = el.id.replace('badge-', '');
+      if (lastKnown[key] === undefined) {
+        el.textContent = '…';
+        el.style.color = '';
+      }
+    });
+  }
 
-    // สร้างสคริปต์ตัวใหม่
-    const script = document.createElement('script');
-    script.id = 'jsonp-script';
-    
-    // ใส่ &t=Date.now() เข้าไปเพื่อบังคับให้มันดึงข้อมูลใหม่ล่าสุดเสมอ (ไม่ใช้ค่าที่จำไว้)
-    script.src = SCRIPT_URL + '?callback=handleCounts&t=' + Date.now();
-    
-    script.onload  = () => console.log('JSONP script loaded');
-    script.onerror = (e) => {
-      console.error('JSONP script error:', e);
-      document.querySelectorAll('.resp-badge').forEach(el => {
+  function onLoadError() {
+    console.warn('JSONP failed/timeout, retry:', retryCount);
+    document.querySelectorAll('.resp-badge').forEach(el => {
+      const key = el.id.replace('badge-', '');
+      if (lastKnown[key] === undefined) {
         el.textContent = 'err';
-        el.style.color = 'red';
-      });
-    };
-    
+        el.style.color = '#dc2626';
+      }
+    });
+    if (retryCount < RETRY_MAX) {
+      retryCount++;
+      console.log(`Retry ${retryCount}/${RETRY_MAX} in 3s...`);
+      setTimeout(loadCounts, 3000);
+    }
+  }
+
+  function loadCounts() {
+    const old = document.getElementById('jsonp-script');
+    if (old) old.remove();
+    clearTimeout(timeoutHandle);
+    setAllBadgesLoading();
+    const script   = document.createElement('script');
+    script.id      = 'jsonp-script';
+    script.src     = SCRIPT_URL + '?callback=handleCounts&t=' + Date.now();
+    script.onerror = onLoadError;
+    timeoutHandle  = setTimeout(() => { console.warn('JSONP timeout'); onLoadError(); }, TIMEOUT_MS);
     document.body.appendChild(script);
   }
 
-  // โหลดครั้งแรกตอนเปิดเว็บ
   loadCounts();
-  
-  // ตั้งให้อัปเดตยอดทุกๆ 15 วินาที
-  setInterval(loadCounts, 15000); 
+  setInterval(() => { retryCount = 0; loadCounts(); }, REFRESH_MS);
 </script>
 </body>
 </html>
